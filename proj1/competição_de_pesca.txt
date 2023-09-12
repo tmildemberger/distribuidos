@@ -1,0 +1,11 @@
+Competição de pesca
+
+Tópicos:
+ * Peixes pescados;
+ * Problemas no barco (assistência mecânica);
+ * Acabou a isca (assistência com iscas);
+ * Compartimento dos peixes cheio;
+ * Outro problema (assistência diversa);
+
+Produtores - Competidor 1, Competidor 2
+Assinantes - Mecânico, Equipe de assistência, Repórter, Juízes da competição

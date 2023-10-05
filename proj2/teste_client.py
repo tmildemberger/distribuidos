@@ -50,7 +50,25 @@ class Client(object):
         self.states["entrada"] = self.entrada
         self.states["saida"] = self.saida
         self.states["relatorio"] = self.relatorio
-    
+        
+    def help():
+        print("Comandos disponíveis:")
+        print("  >> entrada (ou somente 'e')")
+        print("  -- coloca a entrada de um determinado produto no estoque;")
+        print("  +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("  >> saída (ou somente 's')")
+        print("  -- realiza a saída de algum produto do estoque")
+        print("  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("  >> relatório (ou somente 'r')")
+        print("  -- recebe o relatório de produtos não vendidos")
+        print("  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("  >> help (ou somente 'h')")
+        print("  -- mostra essa mensagem de comandos disponíveis")
+        print("  +++++++++++++++++++++++++++++++++++++++++++++++")
+        print("  >> quit")
+        print("  -- fecha a conexão e sai do programa")
+        print("  ++++++++++++++++++++++++++++++++++++")
+
     def default_entry(self):
         self.prompt = self.prompts[self.state]
         pass

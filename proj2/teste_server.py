@@ -2,6 +2,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
 import Pyro5.api
 import time
+from  datetime import datetime
 import json
 
 Pyro5.config.SERIALIZER = 'marshal'
@@ -31,8 +32,8 @@ class Serv(object):
     def relatorio(self, name):
         return json.dumps(self.book)
 
-    def lancamento(self, name, message, signature):
-
+    def lancamento_entrada(self, name, message, signature):
+        date = datetime.now().isoformat()
         # try:
         message_bytes = bytes(message, 'utf-8')
         self.public_keys[name].verify(
@@ -45,6 +46,26 @@ class Serv(object):
             hashes.SHA256()
         )
         obj = json.loads(message)
+        obj["datetime"] = date
+        print(obj)
+        self.book.append(obj)
+        pass
+
+    def lancamento_saida(self, name, message, signature):
+        date = datetime.now().isoformat()
+        # try:
+        message_bytes = bytes(message, 'utf-8')
+        self.public_keys[name].verify(
+            signature,
+            message_bytes,
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+        )
+        obj = json.loads(message)
+        obj["datetime"] = date
         print(obj)
         self.book.append(obj)
         pass

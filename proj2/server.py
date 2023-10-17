@@ -17,7 +17,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
 Pyro5.config.SERIALIZER = 'marshal'
 
 # usa módulo argparse do python para descrever argumentos do programa
-parser = argparse.ArgumentParser(description='Cliente teste')
+parser = argparse.ArgumentParser(description='Servidor do gerenciador de estoque')
 parser.add_argument('--debug', action='store_true', help='Escreve informações de debug')
 
 args = parser.parse_args()
@@ -27,7 +27,8 @@ def debug_print(s):
     if args.debug:
         print(s)
 
-
+# permite que métodos que não começam com '_' sejam acessados por objetos externos
+# que possuam a uri do servidor
 @Pyro5.api.expose
 class Server(object):
     def __init__(self):
@@ -36,7 +37,7 @@ class Server(object):
         self.proxies = dict()
 
         # associa nome de processo externo à sua chave pública
-        self.public_keys = dict()
+        self.chaves_publicas = dict()
 
         # variáveis para controle do estoque em si
         self.produtos_cadastrados = dict()
@@ -46,18 +47,21 @@ class Server(object):
         # fila de comandos enviados do thread do Pyro para o thread principal
         self.comandos = Queue()
 
-    def sign_up(self, name, public_key, uri):
+    # função para o cadastro do gestor de estoque
+    def cadastro(self, nome, chave_publica, uri):
         # manda comando para que o outro thread crie o proxy
         self.comandos.put({
             'tipo': 'adicionar_proxy',
-            'nome': name,
+            'nome': nome,
             'uri': uri
         })
 
         # a chave vem no formato PEM, serializado pela própria biblioteca
-        self.public_keys[name] = serialization.load_pem_public_key(bytes(public_key, 'utf-8'))
+        self.chaves_publicas[nome] = serialization.load_pem_public_key(bytes(chave_publica, 'utf-8'))
 
-    def relatorio_estoque(self, name):
+    # gera relatório de estoque, retornando um dicionário que associa um código
+    # de produto à seu estoque (quando houver estoque)
+    def relatorio_estoque(self):
         ret = dict()
         for (codigo, quantidade) in self.estoque.items():
             if quantidade > 0:
@@ -65,55 +69,62 @@ class Server(object):
                 
         return ret
     
-    def relatorio_historico(self, name, start_date, end_date):
+    # gera relatório com fluxo de movimentações no período especificado
+    def relatorio_fluxo_movimentacoes(self, momento_ini, momento_fim):
         ret = []
-        for (data, obj) in self.historico.items():
-            if data > start_date and data < end_date:
-                ret.append(obj)
+        for (momento, movimentacao) in self.historico.items():
+            if momento > momento_ini and momento < momento_fim:
+                ret.append(movimentacao)
                 
         return ret
     
-    def relatorio_sem_saida(self, name, start_date, end_date, include_out_of_stock=True):
+    # gera relatório com produtos sem saída no período especificado
+    # (opcionalmente excluindo os que já não tem estoque)
+    def relatorio_sem_saida(self, momento_ini, momento_fim, inclui_sem_estoque=True):
         ret = []
         com_saida = set()
-        for (data, obj) in self.historico.items():
-            if data > start_date and data < end_date:
-                if obj["Tipo"] == "Saída":
-                    com_saida.add(obj["Código"])
-                
+        for (momento, movimentacao) in self.historico.items():
+            if momento > momento_ini and momento < momento_fim:
+                if movimentacao["Tipo"] == "Saída":
+                    com_saida.add(movimentacao["Código"])
+        
         ret = set(self.produtos_cadastrados.keys()) - com_saida
-        if not include_out_of_stock:
-            out_of_stock = set()
+        if not inclui_sem_estoque:
+            sem_estoque = set()
             for (codigo, quantidade) in self.estoque.items():
                 if quantidade == 0:
-                    out_of_stock.add(codigo)
+                    sem_estoque.add(codigo)
 
-            ret = ret - out_of_stock
+            ret = ret - sem_estoque
 
         return ret
 
-    def lancamento_entrada(self, name, message, signature):
-        date = datetime.now().isoformat()
-        # try:
-        message_bytes = bytes(message, 'utf-8')
-        self.public_keys[name].verify(
-            signature,
-            message_bytes,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        obj = json.loads(message)
+    def lancamento_entrada(self, nome, mensagem, assinatura):
+        data = datetime.now().isoformat()
+        try:
+            mensagem_bytes = bytes(mensagem, 'utf-8')
+            self.chaves_publicas[nome].verify(
+                assinatura,
+                mensagem_bytes,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            movimentacao = json.loads(mensagem)
+        except Exception:
+            # caso a assinatura não possa ser verificada, não ocorre o lançamento
+            return
 
-        codigo = obj['Código']
-        nome = obj['Nome']
-        descricao = obj['Descrição']
-        quantidade = int(obj['Quantidade'])
-        preco = obj['Preço Unitário']
-        estoque_min = int(obj['Estoque Mínimo'])
+        codigo = movimentacao['Código']
+        nome = movimentacao['Nome']
+        descricao = movimentacao['Descrição']
+        quantidade = int(movimentacao['Quantidade']) if movimentacao['Quantidade'].isdecimal() else 0
+        preco = movimentacao['Preço Unitário']
+        estoque_min = int(movimentacao['Estoque Mínimo']) if movimentacao['Estoque Mínimo'].isdecimal() else 0
 
+        # cadastra novo produto internamente
         if codigo not in self.produtos_cadastrados.keys():
             produto = {
                 'codigo': codigo,
@@ -121,75 +132,81 @@ class Server(object):
                 'descricao': descricao,
                 'preco_unitario': preco,
                 'estoque_min': estoque_min,
-                'data_cadastro': date,
+                'data_cadastro': data,
             }
             self.produtos_cadastrados[codigo] = produto
             self.estoque[codigo] = quantidade
         else:
             self.estoque[codigo] += quantidade
         
+        # checa se o estoque é menor que o mínimo cadastrado
         if self.estoque[codigo] < self.produtos_cadastrados[codigo]['estoque_min']:
-            # notificação
-            # print("Notificacao entrada")
+            # envia comando para outra thread notificar gestores de estoque
             self.comandos.put({
                 'tipo': 'notifica',
                 'titulo': 'Estoque Mínimo',
                 'mensagem': f'Quantidade do produto {codigo} menor que estoque mínimo ({self.estoque[codigo]} < {self.produtos_cadastrados[codigo]["estoque_min"]})'
             })
-            pass
-        obj['Tipo'] = 'Entrada'
-        self.historico[date] = obj
-        pass
+        
+        # armazena movimentação de entrada
+        movimentacao['Tipo'] = 'Entrada'
+        self.historico[data] = movimentacao
 
-    def lancamento_saida(self, name, message, signature):
-        date = datetime.now().isoformat()
-        # try:
-        message_bytes = bytes(message, 'utf-8')
-        self.public_keys[name].verify(
-            signature,
-            message_bytes,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        obj = json.loads(message)
-        #obj["datetime"] = date
-        #print(obj)
+    def lancamento_saida(self, nome, mensagem, assinatura):
+        data = datetime.now().isoformat()
+        try:
+            mensagem_bytes = bytes(mensagem, 'utf-8')
+            self.chaves_publicas[nome].verify(
+                assinatura,
+                mensagem_bytes,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            movimentacao = json.loads(mensagem)
+        except Exception:
+            # caso a assinatura não possa ser verificada, não reconhece a saída
+            return
 
-        codigo = obj['Código']
-        quantidade = int(obj['Quantidade'])
+        codigo = movimentacao['Código']
+        quantidade = int(movimentacao['Quantidade']) if movimentacao['Quantidade'].isdecimal() else 0
 
         if codigo not in self.produtos_cadastrados.keys():
             print("Ignorando produto não cadastrado")
 
+        # diminui quantidade no estoque
         self.estoque[codigo] -= quantidade
+
+        # checa se o estoque ficou menor que o mínimo cadastrado
         if self.estoque[codigo] < self.produtos_cadastrados[codigo]['estoque_min']:
-            # notificação
-            # print("Notificacao saida")
+            # envia comando para outra thread notificar gestores de estoque
             self.comandos.put({
                 'tipo': 'notifica',
                 'titulo': 'Estoque Mínimo',
                 'mensagem': f'Quantidade do produto {codigo} menor que estoque mínimo ({self.estoque[codigo]} < {self.produtos_cadastrados[codigo]["estoque_min"]})'
             })
-            pass
-        obj['Tipo'] = 'Saída'
-        self.historico[date] = obj
-        pass
+        
+        # armazena movimentação de entrada
+        movimentacao['Tipo'] = 'Saída'
+        self.historico[data] = movimentacao
 
+    # função privada (não exposta) que notifica os proxies cadastrados,
+    # e remove o cadastro dos que não é mais possível contactar
     def _notifica(self, tipo, mensagem):
         to_delete = []
-        for name, proxy in self.proxies.items():
+        for nome, proxy in self.proxies.items():
             try:
                 proxy.notificacao(tipo, mensagem)
             except Exception:
-                to_delete.append(name)
+                to_delete.append(nome)
                 pass
         
-        for name in to_delete:
-            del self.proxies[name]
+        for nome in to_delete:
+            del self.proxies[nome]
 
+    # função privada que envia comando periódico de minuto em minuto
     def _timer(self):
         while True:
             time.sleep(60)
@@ -197,37 +214,51 @@ class Server(object):
                 'tipo': 'timer'
             })
 
+    # função privada que executa no thread principal, recebendo e executando comandos
     def _run(self):
         while True:
             cmd = self.comandos.get()
-            if cmd['tipo'] == 'timer':
-                now = datetime.now()
-                delta = timedelta(minutes=2)
-                debug_print(f"Investigando período entre {(now-delta).isoformat()} e {now.isoformat()}")
 
-                a = self.relatorio_sem_saida('', (now-delta).isoformat(), now.isoformat(), include_out_of_stock=False)
+            if cmd['tipo'] == 'timer':
+                # checa se precisa enviar notificação de promoção
+                agora = datetime.now()
+                delta = timedelta(minutes=2)
+                debug_print(f"Investigando período entre {(agora-delta).isoformat()} e {agora.isoformat()}")
+
+                a = self.relatorio_sem_saida((agora-delta).isoformat(), agora.isoformat(), inclui_sem_estoque=False)
                 if len(a) > 0:
-                    self._notifica('Promoção', str(a))
+                    self._notifica('Produtos Sem Saída (promoção)', str(a))
 
             elif cmd['tipo'] == 'adicionar_proxy':
+                # aqui é que são criados os proxies (pois eles pertencem ao thread que os criou,
+                # e só esse thread pode utilizar)
                 self.proxies[cmd['nome']] = Pyro5.api.Proxy(cmd['uri'])
             elif cmd['tipo'] == 'notifica':
+                # envia notificação de falta de estoque de acordo com o comando
                 self._notifica(cmd['titulo'], cmd['mensagem'])
 
+# cria instância da nossa classe servidor
 server = Server()
 
-daemon = Pyro5.server.Daemon()         # make a Pyro daemon
-ns = Pyro5.api.locate_ns()             # find the name server
-uri = daemon.register(server)          # register the greeting maker as a Pyro object
-ns.register("example.server", uri)     # register the object with a name in the name server
+# registra o objeto no daemon
+daemon = Pyro5.server.Daemon()
+uri = daemon.register(server)
 
-print("Ready.")
+# registra o objeto no servidor de nomes
+ns = Pyro5.api.locate_ns()
+ns.register("gerenciador_de_estoque.servidor", uri)
+
+debug_print("Ready.")
+
+# inicia thread em background para o loop do daemon do Pyro
 th = threading.Thread(target=daemon.requestLoop)
 th.daemon = True
 th.start()
 
+# inicia thread para a contagem do tempo do nosso servidor
 timer_th = threading.Thread(target=Server._timer, args=(server,))
 timer_th.daemon = True
 timer_th.start()
 
+# inicia função de responder à comandos na thread principal
 server._run()

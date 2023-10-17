@@ -3,6 +3,7 @@ import argparse
 import json
 import threading
 import time
+import pprint
 
 import Pyro5.api
 
@@ -18,7 +19,8 @@ from prompt_toolkit.patch_stdout import patch_stdout
 Pyro5.config.SERIALIZER = 'marshal'
 
 # usa módulo argparse do python para descrever argumentos do programa
-parser = argparse.ArgumentParser(description='Cliente teste')
+parser = argparse.ArgumentParser(description='Cliente do gerenciador de estoque')
+parser.add_argument('nome', nargs='?', default='???', help='Número ou nome do gestor (opcional)')
 parser.add_argument('--debug', action='store_true', help='Escreve informações de debug')
 
 args = parser.parse_args()
@@ -30,11 +32,10 @@ def debug_print(s):
 
 
 class Client(object):
-    def __init__(self, name, daemon, server_proxy):
-        self.notified = False
+    def __init__(self, nome, daemon, proxy_servidor):
         self.daemon = daemon
-        self.server_proxy = server_proxy
-        self.name = name
+        self.proxy_servidor = proxy_servidor
+        self.nome = nome
         self.private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
         self.public_key = self.private_key.public_key()
         self.serialized_public_key = self.public_key.public_bytes(
@@ -120,9 +121,9 @@ class Client(object):
                 ),
                 hashes.SHA256()
             )
-            debug_print(f"sending message")
+            debug_print(f"enviando mensagem")
             debug_print(self.entrada_data)
-            self.server_proxy.lancamento_entrada(self.name, message, signature)
+            self.proxy_servidor.lancamento_entrada(self.nome, message, signature)
             return "comando"
         
         self.prompt = self.prompts["entrada"] + self.entrada_fields[self.entrada_state] + ">> "
@@ -149,9 +150,9 @@ class Client(object):
                 ),
                 hashes.SHA256()
             )
-            debug_print(f"sending message")
+            debug_print(f"enviando mensagem")
             debug_print(self.saida_data)
-            self.server_proxy.lancamento_saida(self.name, message, signature)
+            self.proxy_servidor.lancamento_saida(self.nome, message, signature)
             return "comando"
         
         self.prompt = self.prompts["saida"] + self.saida_fields[self.saida_state] + ">> "
@@ -161,7 +162,6 @@ class Client(object):
         self.relatorio_prompts = ["Tipo de Relatório ('Estoque', 'Histórico', 'Sem saída')", "Data inicial (formato YYYY-MM-DD)", "Hora inicial (formato hh:mm:ss)", "Data final", "Hora final"]
         self.relatorio_fields = ['tipo', 'd_st', 'h_st', 'd_ed', 'h_ed']
         self.relatorio_state = 0
-        #self.relatorio_tipo = ''
         self.relatorio_data = dict()
         self.prompt = self.prompts["relatorio"] + self.relatorio_prompts[self.relatorio_state] + ">> "
 
@@ -171,27 +171,31 @@ class Client(object):
         tipo = self.relatorio_data["tipo"]
         tipo = tipo.lower()
         if tipo == 'estoque' or tipo == 'e':
-            resp = self.server_proxy.relatorio_estoque(self.name)
-            debug_print(f"receiving estoque report")
+            resp = self.proxy_servidor.relatorio_estoque()
+            debug_print(f"recebendo relatório de estoque")
             debug_print(resp)
+            for (codigo, quantidade) in resp.items():
+                print(f"Produto {codigo} tem {quantidade} de estoque")
             return 'comando'
         elif self.relatorio_state >= len(self.relatorio_prompts):
             if tipo == 'histórico' or tipo == 'historico' or tipo == 'h':
-                resp = self.server_proxy.relatorio_historico(
-                    self.name,
+                resp = self.proxy_servidor.relatorio_fluxo_movimentacoes(
                     self.relatorio_data['d_st'] + "T" + self.relatorio_data['h_st'],
                     self.relatorio_data['d_ed'] + "T" + self.relatorio_data['h_ed']
                 )
-                debug_print(f"receiving historico report")
+                debug_print(f"recebendo relatório de historico")
                 debug_print(resp)
+                print("Fluxo de Movimentações no período:")
+                pprint.pprint(resp)
             elif tipo == 'sem_saida' or tipo == 'sem saida' or tipo == 'sem saída' or tipo == 's':
-                resp = self.server_proxy.relatorio_sem_saida(
-                    self.name,
+                resp = self.proxy_servidor.relatorio_sem_saida(
                     self.relatorio_data['d_st'] + "T" + self.relatorio_data['h_st'],
                     self.relatorio_data['d_ed'] + "T" + self.relatorio_data['h_ed']
                 )
-                debug_print(f"receiving sem_saida report")
+                debug_print(f"recebendo relatório de sem_saida")
                 debug_print(resp)
+                print("Produtos sem saída no período:")
+                pprint.pprint(resp)
             
             return "comando"
         
@@ -202,13 +206,9 @@ class Client(object):
     @Pyro5.api.callback
     def notificacao(self, tipo, mensagem):
         print(f"\rNotificação {tipo}: {mensagem}")
-        # print(self.prompt, end='')
-        # print(readline.get_line_buffer())
 
     def run(self):
-        # print(type(self.serialized_public_key))
-        # print(self.serialized_public_key)
-        self.server_proxy.sign_up(self.name, self.serialized_public_key, self.daemon.uriFor(self))
+        self.proxy_servidor.cadastro(self.nome, self.serialized_public_key, self.daemon.uriFor(self))
         self.state = ""
         next_state = "comando"
         while next_state != "sair":
@@ -227,13 +227,20 @@ class Client(object):
             # processa o que foi recebido
             next_state = self.states[self.state](msg)
 
-server = Pyro5.api.Proxy("PYRONAME:example.server")    # use name server object lookup uri shortcut
+# proxy para o servidor (já cadastrado no servidor de nomes)
+server = Pyro5.api.Proxy("PYRONAME:gerenciador_de_estoque.servidor")
 
-daemon = Pyro5.server.Daemon()         # make a Pyro daemon
-client = Client('client', daemon, server)
-client_uri = daemon.register(client)   # register the greeting maker as a Pyro object
+daemon = Pyro5.server.Daemon()
 
+# cria e registra o objeto do cliente no daemon
+debug_print(f"Criando objeto para o 'cliente{args.nome}'")
+client = Client('cliente' + args.nome, daemon, server)
+client_uri = daemon.register(client)
+
+# inicia thread em background para o loop do daemon do Pyro
 th = threading.Thread(target=daemon.requestLoop)
 th.daemon = True
 th.start()
+
+# inicia função principal, que recebe entrada do usuário e se comunica com servidor
 client.run()

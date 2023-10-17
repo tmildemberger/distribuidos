@@ -1,15 +1,20 @@
-# saved as greeting-client.py
-import Pyro5.api
+# bibliotecas do python
+import argparse
+import json
 import threading
 import time
-import json
-# import readline
-from prompt_toolkit import prompt
-from prompt_toolkit.patch_stdout import patch_stdout
-import argparse
+
+import Pyro5.api
+
+# biblioteca cryptography para assinatura e verificação com chaves rsa
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
 
+# biblioteca prompt_toolkit para interface com o usuário
+from prompt_toolkit import prompt
+from prompt_toolkit.patch_stdout import patch_stdout
+
+# configura uso do serializer 'marshal'
 Pyro5.config.SERIALIZER = 'marshal'
 
 # usa módulo argparse do python para descrever argumentos do programa
@@ -22,6 +27,7 @@ args = parser.parse_args()
 def debug_print(s):
     if args.debug:
         print(s)
+
 
 class Client(object):
     def __init__(self, name, daemon, server_proxy):

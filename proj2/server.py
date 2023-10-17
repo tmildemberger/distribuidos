@@ -1,45 +1,61 @@
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
-import Pyro5.api
+# bibliotecas do python
+import argparse
+import json
 import threading
 import time
-from  datetime import datetime, timedelta
-import json
+
+from datetime import datetime, timedelta
 from queue import Queue
 
+import Pyro5.api
+
+# biblioteca cryptography para assinatura e verificação com chaves rsa
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
+
+# configura uso do serializer 'marshal'
 Pyro5.config.SERIALIZER = 'marshal'
+
+# usa módulo argparse do python para descrever argumentos do programa
+parser = argparse.ArgumentParser(description='Cliente teste')
+parser.add_argument('--debug', action='store_true', help='Escreve informações de debug')
+
+args = parser.parse_args()
+
+# função que só imprime o que foi mandado caso a opção debug esteja ativada
+def debug_print(s):
+    if args.debug:
+        print(s)
+
 
 @Pyro5.api.expose
 class Server(object):
     def __init__(self):
+        # associa nome de processo externo a um proxy (para notificar de volta);
+        # criado e possuido somente pelo thread que notifica (não no do daemon do Pyro, que responde)
         self.proxies = dict()
+
+        # associa nome de processo externo à sua chave pública
         self.public_keys = dict()
+
+        # variáveis para controle do estoque em si
         self.produtos_cadastrados = dict()
         self.estoque = dict()
         self.historico = dict()
 
+        # fila de comandos enviados do thread do Pyro para o thread principal
         self.comandos = Queue()
 
-    # @Pyro5.api.oneway
-    # def req_callback(self, callback, num):
-    #     # callback._pyroClaimOwnership()
-    #     time.sleep(5 + num/5)
-    #     proxy = Pyro5.api.Proxy(callback)
-    #     proxy.callback(num)
-
     def sign_up(self, name, public_key, uri):
-        # print(name)
-        # print(public_key)
-        # print(uri)
+        # manda comando para que o outro thread crie o proxy
         self.comandos.put({
             'tipo': 'adicionar_proxy',
             'nome': name,
             'uri': uri
         })
 
-        # self.proxies[name] = Pyro5.api.Proxy(uri)
+        # a chave vem no formato PEM, serializado pela própria biblioteca
         self.public_keys[name] = serialization.load_pem_public_key(bytes(public_key, 'utf-8'))
-        pass
 
     def relatorio_estoque(self, name):
         ret = dict()
@@ -187,7 +203,7 @@ class Server(object):
             if cmd['tipo'] == 'timer':
                 now = datetime.now()
                 delta = timedelta(minutes=2)
-                print(f"Investigando período entre {(now-delta).isoformat()} e {now.isoformat()}")
+                debug_print(f"Investigando período entre {(now-delta).isoformat()} e {now.isoformat()}")
 
                 a = self.relatorio_sem_saida('', (now-delta).isoformat(), now.isoformat(), include_out_of_stock=False)
                 if len(a) > 0:

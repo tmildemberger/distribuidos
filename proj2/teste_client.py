@@ -3,6 +3,9 @@ import Pyro5.api
 import threading
 import time
 import json
+# import readline
+from prompt_toolkit import prompt
+from prompt_toolkit.patch_stdout import patch_stdout
 import argparse
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
@@ -43,7 +46,7 @@ class Client(object):
         self.states_entry["comando"] = self.default_entry
         self.states_entry["entrada"] = self.entrada_entry
         self.states_entry["saida"] = self.saida_entry
-        self.states_entry["relatorio"] = self.default_entry
+        self.states_entry["relatorio"] = self.relatorio_entry
 
         self.states = dict()
         self.states["comando"] = self.comando
@@ -83,7 +86,7 @@ class Client(object):
         elif tokens[0] == 'relatorio' or tokens[0] == 'r':
             return "relatorio"
         elif tokens[0] == 'help' or tokens[0] == 'h':
-            # self.help()
+            self.help()
             return "comando"
         elif tokens[0] == 'quit' or tokens[0] == 'q':
             return "sair"
@@ -148,20 +151,53 @@ class Client(object):
         self.prompt = self.prompts["saida"] + self.saida_fields[self.saida_state] + ">> "
         return "saida"
     
+    def relatorio_entry(self):
+        self.relatorio_prompts = ["Tipo de Relatório ('Estoque', 'Histórico', 'Sem saída')", "Data inicial (formato YYYY-MM-DD)", "Hora inicial (formato hh:mm:ss)", "Data final", "Hora final"]
+        self.relatorio_fields = ['tipo', 'd_st', 'h_st', 'd_ed', 'h_ed']
+        self.relatorio_state = 0
+        #self.relatorio_tipo = ''
+        self.relatorio_data = dict()
+        self.prompt = self.prompts["relatorio"] + self.relatorio_prompts[self.relatorio_state] + ">> "
+
     def relatorio(self, msg):
-        if msg == '':
+        self.relatorio_data[self.relatorio_fields[self.relatorio_state]] = msg
+        self.relatorio_state += 1
+        tipo = self.relatorio_data["tipo"]
+        tipo = tipo.lower()
+        if tipo == 'estoque' or tipo == 'e':
+            resp = self.server_proxy.relatorio_estoque(self.name)
+            debug_print(f"receiving estoque report")
+            debug_print(resp)
+            return 'comando'
+        elif self.relatorio_state >= len(self.relatorio_prompts):
+            if tipo == 'histórico' or tipo == 'historico' or tipo == 'h':
+                resp = self.server_proxy.relatorio_historico(
+                    self.name,
+                    self.relatorio_data['d_st'] + "T" + self.relatorio_data['h_st'],
+                    self.relatorio_data['d_ed'] + "T" + self.relatorio_data['h_ed']
+                )
+                debug_print(f"receiving historico report")
+                debug_print(resp)
+            elif tipo == 'sem_saida' or tipo == 'sem saida' or tipo == 'sem saída' or tipo == 's':
+                resp = self.server_proxy.relatorio_sem_saida(
+                    self.name,
+                    self.relatorio_data['d_st'] + "T" + self.relatorio_data['h_st'],
+                    self.relatorio_data['d_ed'] + "T" + self.relatorio_data['h_ed']
+                )
+                debug_print(f"receiving sem_saida report")
+                debug_print(resp)
+            
             return "comando"
         
-        resp = json.loads(self.server_proxy.relatorio(self.name))
-        debug_print(f"receiving report")
-        debug_print(resp)
+        self.prompt = self.prompts["relatorio"] + self.relatorio_prompts[self.relatorio_state] + ">> "
         return "relatorio"
     
     @Pyro5.api.expose
     @Pyro5.api.callback
-    def callback(self, n):
-        self.notified = True
-        print(n)
+    def notificacao(self, tipo, mensagem):
+        print(f"\rNotificação {tipo}: {mensagem}")
+        # print(self.prompt, end='')
+        # print(readline.get_line_buffer())
 
     def run(self):
         # print(type(self.serialized_public_key))
@@ -174,12 +210,10 @@ class Client(object):
                 self.state = next_state
                 self.states_entry[self.state]()
 
-            # indica tópico atual
-            print(self.prompt, end='')
-
             # recebe comando/mensagem
             try:
-                msg = input()
+                with patch_stdout():
+                    msg = prompt(self.prompt)
             except (EOFError, KeyboardInterrupt):
                 print()
                 break

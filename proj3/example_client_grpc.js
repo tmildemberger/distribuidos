@@ -16,16 +16,6 @@
  *
  */
 
-var source = new EventSource("{{ url_for('sse.stream') }}");
-    source.addEventListener('publish', function(event) {
-        var data = JSON.parse(event.data);
-        console.log("The server says " + data.message);
-    }, false);
-    source.addEventListener('error', function(event) {
-        console.log("Error"+ event)
-        alert("Failed to connect to event stream. Is Redis running?");
-    }, false);
-
 var PROTO_PATH = __dirname + '/../../protos/helloworld.proto';
 
 var parseArgs = require('minimist');

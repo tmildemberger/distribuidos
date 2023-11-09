@@ -1,6 +1,6 @@
 import logo from './logo.svg';
 import './App.css';
-import {BrowserRouter as Router, Routes, Route} from "react-router-dom";
+import {BrowserRouter as Router, Routes, Route, Link} from "react-router-dom";
 
 import Main from './components/main'; 
 import EntradaProduto from './components/entradaProduto'; 
@@ -23,19 +23,17 @@ function App() {
         >
           Learn React
         </a>
-        <script>
-
-        </script>
       </header>
       <Router>
         <Routes>
           <Route path="/" element={<Main/>} />
-          <Route path="/entradaProduto" element={<entradaProduto/>} />
-          <Route path="/saidaProduto" element={<saidaProduto/>} />
-          <Route path="/relatorio" element={<relatorio/>} />
+          <Route path="/entradaProduto" element={<EntradaProduto/>} />
+          <Route path="/saidaProduto" element={<SaidaProduto/>} />
+          <Route path="/relatorio" element={<Relatorio/>} />
 
         </Routes>
       </Router>
+      
     </div>
   );
 }

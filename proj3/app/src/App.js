@@ -6,6 +6,23 @@ import Main from './components/main';
 import EntradaProduto from './components/entradaProduto'; 
 import SaidaProduto from './components/saidaProduto';
 import Relatorio from './components/relatorio';
+import { useEffect } from 'react';
+
+const BaseURL = "<http://localhost:8000>";
+
+const receberNotificao = (data) => {
+  console.log("Notificação recebida");
+  console.log(data);
+  alert(data);
+}
+
+useEffect(() => {
+  const eventSource = new EventSource(`${BaseURL}/stream`);
+  eventSource.onmessage = (e) => receberNotificao(e.data);
+  return () => {
+    eventSource.close();
+  };
+}, []);
 
 function App() {
   return (

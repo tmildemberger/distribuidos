@@ -8,6 +8,7 @@ from flask_sse import sse
 from concurrent import futures
 import threading
 import time
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config["REDIS_URL"] = "redis://localhost"
@@ -26,11 +27,16 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
 
     def checaNotificacaoSemSaida(self):
         while True:
-
+            agora = datetime.now()
+            delta = timedelta(minutes=self.minutos)
+            
+            inicio_periodo = (agora-delta).isoformat()
+            fim_periodo = agora.isoformat()
+            
             sem_saida = []
             com_saida = set()
             for (momento, movimentacao) in self.historico.items():
-                if momento > request.inicio_periodo and momento < request.fim_periodo:
+                if momento > inicio_periodo and momento < fim_periodo:
                     if movimentacao.tipo == "Saída":
                         com_saida.add(movimentacao.codigo)
             
@@ -43,10 +49,11 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
 
             if len(sem_saida) > 0:
                 # vai mandar notificação
-                sse.publish({
-                    'tipo': 'Produtos sem saída',
-                    'mensagem': f'Os produtos com código {{{sem_saida}}} não tiveram saída nos últimos {self.minutos} minutos'
-                }, type='publish')
+                with app.app_context():
+                    sse.publish({
+                        'tipo': 'Produtos sem saída',
+                        'mensagem': f'O(s) produto(s) com código {sem_saida} não tiveram saída nos últimos {self.minutos} minutos'
+                    }, type='message')
 
             time.sleep(60*self.minutos)
 
@@ -80,9 +87,10 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
         
         ret = set(self.produtos_cadastrados.keys()) - com_saida
 
-        return gestor_de_estoque_pb2.RelatorioSemSaida(list(ret))
+        return gestor_de_estoque_pb2.RelatorioSemSaida(codigos_sem_saida=list(ret))
 
     def LancarEntrada(self, request, context):
+        print("LancarEntrada")
         data = datetime.now().astimezone().isoformat()
 
         movimentacao = gestor_de_estoque_pb2.RelatorioFluxoMovimentacoes.Movimentacao(
@@ -108,23 +116,25 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
                 'estoque_minimo': request.estoque_minimo,
             }
             self.produtos_cadastrados[codigo] = produto
-            self.estoque[codigo] = quantidade
+            self.estoque[codigo] = request.quantidade
         else:
-            self.estoque[codigo] += quantidade
+            self.estoque[codigo] += request.quantidade
         
         # checa se o estoque é menor que o mínimo cadastrado
         if self.estoque[codigo] < self.produtos_cadastrados[codigo]['estoque_minimo']:
             # envia notificação SSE sobre estoque mínimo
-            sse.publish({
-                'tipo': 'Estoque mínimo atingido',
-                'mensagem': f'O produto de código "{codigo}" tem {self.estoque[codigo]} de estoque, menor que o estoque mínimo de {self.produtos_cadastrados[codigo]["estoque_minimo"]}'
-            }, type='publish')
+            with app.app_context():
+                sse.publish({
+                    'tipo': 'Estoque mínimo atingido',
+                    'mensagem': f'O produto de código "{codigo}" tem {self.estoque[codigo]} de estoque, menor que o estoque mínimo de {self.produtos_cadastrados[codigo]["estoque_minimo"]}'
+                }, type='message')
         
         self.historico[data] = movimentacao
 
-        return gestor_de_estoque_pb2.EstadoResposta('ok')
+        return gestor_de_estoque_pb2.EstadoResposta(estado='ok')
 
     def LancarSaida(self, request, context):
+        print("LancarSaida")
         data = datetime.now().astimezone().isoformat()
 
         movimentacao = gestor_de_estoque_pb2.RelatorioFluxoMovimentacoes.Movimentacao(
@@ -138,21 +148,25 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
         if codigo not in self.produtos_cadastrados.keys():
             return gestor_de_estoque_pb2.EstadoResposta('produto não cadastrado')
         else:
-            self.estoque[codigo] -= quantidade
+            self.estoque[codigo] -= request.quantidade
 
         # checa se o estoque é menor que o mínimo cadastrado
         if self.estoque[codigo] < self.produtos_cadastrados[codigo]['estoque_minimo']:
             # envia notificação SSE sobre estoque mínimo
-            sse.publish({
-                'tipo': 'Estoque mínimo atingido',
-                'mensagem': f'''O produto de código "{codigo}" tem {self.estoque[codigo]} de estoque, menor que o estoque mínimo de {self.produtos_cadastrados[codigo]["estoque_minimo"]}'''
-            }, type='publish')
+            with app.app_context():
+                sse.publish({
+                    'tipo': 'Estoque mínimo atingido',
+                    'mensagem': f'''O produto de código "{codigo}" tem {self.estoque[codigo]} de estoque, menor que o estoque mínimo de {self.produtos_cadastrados[codigo]["estoque_minimo"]}'''
+                }, type='message')
         
         self.historico[data] = movimentacao
 
-        return gestor_de_estoque_pb2.EstadoResposta('ok')
+        return gestor_de_estoque_pb2.EstadoResposta(estado='ok')
 
 def serve():
+    flask_th = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'debug': True, 'use_reloader': False})
+    flask_th.daemon = True
+    flask_th.start()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     gestor_de_estoque_server = GestorDeEstoqueServicer(minutos=2)
     gestor_de_estoque_pb2_grpc.add_GestorDeEstoqueServicer_to_server(
@@ -164,6 +178,7 @@ def serve():
     notification_thread = threading.Thread(target=gestor_de_estoque_server.checaNotificacaoSemSaida)
     notification_thread.daemon = True
     notification_thread.start()
+    print("Vamo")
     server.wait_for_termination()
 
 if __name__ == '__main__':

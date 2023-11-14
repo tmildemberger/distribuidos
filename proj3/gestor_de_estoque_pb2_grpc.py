@@ -15,32 +15,32 @@ class GestorDeEstoqueStub(object):
             channel: A grpc.Channel.
         """
         self.Cadastrar = channel.unary_unary(
-                '/GestorDeEstoque/Cadastrar',
+                '/gestor_de_estoque.GestorDeEstoque/Cadastrar',
                 request_serializer=gestor__de__estoque__pb2.DadosCadastro.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.SseUrl.FromString,
                 )
         self.ObterRelatorioEstoque = channel.unary_unary(
-                '/GestorDeEstoque/ObterRelatorioEstoque',
+                '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioEstoque',
                 request_serializer=gestor__de__estoque__pb2.MensagemVazia.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.RelatorioEstoque.FromString,
                 )
         self.ObterRelatorioFluxoMovimentacoes = channel.unary_unary(
-                '/GestorDeEstoque/ObterRelatorioFluxoMovimentacoes',
+                '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioFluxoMovimentacoes',
                 request_serializer=gestor__de__estoque__pb2.Periodo.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.RelatorioFluxoMovimentacoes.FromString,
                 )
         self.ObterRelatorioSemSaida = channel.unary_unary(
-                '/GestorDeEstoque/ObterRelatorioSemSaida',
+                '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioSemSaida',
                 request_serializer=gestor__de__estoque__pb2.Periodo.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.RelatorioSemSaida.FromString,
                 )
         self.LancarEntrada = channel.unary_unary(
-                '/GestorDeEstoque/LancarEntrada',
+                '/gestor_de_estoque.GestorDeEstoque/LancarEntrada',
                 request_serializer=gestor__de__estoque__pb2.DadosEntrada.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.EstadoResposta.FromString,
                 )
         self.LancarSaida = channel.unary_unary(
-                '/GestorDeEstoque/LancarSaida',
+                '/gestor_de_estoque.GestorDeEstoque/LancarSaida',
                 request_serializer=gestor__de__estoque__pb2.DadosSaida.SerializeToString,
                 response_deserializer=gestor__de__estoque__pb2.EstadoResposta.FromString,
                 )
@@ -120,7 +120,7 @@ def add_GestorDeEstoqueServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'GestorDeEstoque', rpc_method_handlers)
+            'gestor_de_estoque.GestorDeEstoque', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -139,7 +139,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/Cadastrar',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/Cadastrar',
             gestor__de__estoque__pb2.DadosCadastro.SerializeToString,
             gestor__de__estoque__pb2.SseUrl.FromString,
             options, channel_credentials,
@@ -156,7 +156,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/ObterRelatorioEstoque',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioEstoque',
             gestor__de__estoque__pb2.MensagemVazia.SerializeToString,
             gestor__de__estoque__pb2.RelatorioEstoque.FromString,
             options, channel_credentials,
@@ -173,7 +173,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/ObterRelatorioFluxoMovimentacoes',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioFluxoMovimentacoes',
             gestor__de__estoque__pb2.Periodo.SerializeToString,
             gestor__de__estoque__pb2.RelatorioFluxoMovimentacoes.FromString,
             options, channel_credentials,
@@ -190,7 +190,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/ObterRelatorioSemSaida',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/ObterRelatorioSemSaida',
             gestor__de__estoque__pb2.Periodo.SerializeToString,
             gestor__de__estoque__pb2.RelatorioSemSaida.FromString,
             options, channel_credentials,
@@ -207,7 +207,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/LancarEntrada',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/LancarEntrada',
             gestor__de__estoque__pb2.DadosEntrada.SerializeToString,
             gestor__de__estoque__pb2.EstadoResposta.FromString,
             options, channel_credentials,
@@ -224,7 +224,7 @@ class GestorDeEstoque(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/GestorDeEstoque/LancarSaida',
+        return grpc.experimental.unary_unary(request, target, '/gestor_de_estoque.GestorDeEstoque/LancarSaida',
             gestor__de__estoque__pb2.DadosSaida.SerializeToString,
             gestor__de__estoque__pb2.EstadoResposta.FromString,
             options, channel_credentials,

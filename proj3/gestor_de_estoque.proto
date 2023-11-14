@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package gestor_de_estoque;
+
 service GestorDeEstoque {
     rpc Cadastrar(DadosCadastro) returns (SseUrl);
 

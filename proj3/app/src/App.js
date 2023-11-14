@@ -10,21 +10,23 @@ import { useEffect } from 'react';
 
 const BaseURL = "<http://localhost:8000>";
 
-const receberNotificao = (data) => {
-  console.log("Notificação recebida");
-  console.log(data);
-  alert(data);
-}
 
-useEffect(() => {
-  const eventSource = new EventSource(`${BaseURL}/stream`);
-  eventSource.onmessage = (e) => receberNotificao(e.data);
-  return () => {
-    eventSource.close();
-  };
-}, []);
+
 
 function App() {
+  const receberNotificao = (data) => {
+    console.log("Notificação recebida");
+    console.log(data);
+    alert(data);
+  };
+
+  useEffect(() => {
+    const eventSource = new EventSource(`${BaseURL}/stream`);
+    eventSource.onmessage = (e) => receberNotificao(e.data);
+    return () => {
+      eventSource.close();
+    };
+  }, []);
   return (
     <div className="App">
       <header className="App-header">

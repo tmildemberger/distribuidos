@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package gestor_de_estoque;
+
+service GestorDeEstoque {
+    rpc Cadastrar(DadosCadastro) returns (SseUrl);
+
+    rpc ObterRelatorioEstoque(MensagemVazia) returns (RelatorioEstoque);
+    rpc ObterRelatorioFluxoMovimentacoes(Periodo) returns (RelatorioFluxoMovimentacoes);
+    rpc ObterRelatorioSemSaida(Periodo) returns (RelatorioSemSaida);
+
+    rpc LancarEntrada(DadosEntrada) returns (EstadoResposta);
+    rpc LancarSaida(DadosSaida) returns (EstadoResposta);
+}
+
+message MensagemVazia {
+
+}
+
+message EstadoResposta {
+    string estado = 1;
+}
+
+message DadosCadastro {
+    string nome = 1;
+}
+
+message SseUrl {
+    string url = 1;
+}
+
+
+message DadosEntrada {
+    string codigo = 1;
+    int32 quantidade = 2;
+    string nome = 3;
+    string descricao = 4;
+    int32 preco_unitario = 5;
+    int32 estoque_minimo = 6;
+}
+
+message DadosSaida {
+    string codigo = 1;
+    int32 quantidade = 2;
+}
+
+
+message Periodo {
+    string inicio_periodo = 1;
+    string fim_periodo = 2;
+}
+
+message RelatorioEstoque {
+    map<string, int32> estoque = 1;
+}
+
+message RelatorioFluxoMovimentacoes {
+    message Movimentacao {
+        string tipo = 1;
+        string codigo = 2;
+        int32 quantidade = 3;
+        string data_movimentacao = 4;
+
+        optional string nome = 5;
+        optional string descricao = 6;
+        optional int32 preco_unitario = 7;
+        optional int32 estoque_minimo = 8;
+    }
+    repeated Movimentacao movimentacoes = 1;
+}
+
+message RelatorioSemSaida {
+    repeated string codigos_sem_saida = 1;
+}

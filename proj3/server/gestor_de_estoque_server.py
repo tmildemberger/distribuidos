@@ -10,6 +10,12 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+import flask.cli
+flask.cli.show_server_banner = lambda *args: None
+
+import logging
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+
 app = Flask(__name__)
 app.config["REDIS_URL"] = "redis://localhost"
 app.register_blueprint(sse, url_prefix='/stream')
@@ -90,7 +96,6 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
         return gestor_de_estoque_pb2.RelatorioSemSaida(codigos_sem_saida=list(ret))
 
     def LancarEntrada(self, request, context):
-        print("LancarEntrada")
         data = datetime.now().astimezone().isoformat()
 
         movimentacao = gestor_de_estoque_pb2.RelatorioFluxoMovimentacoes.Movimentacao(
@@ -134,7 +139,6 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
         return gestor_de_estoque_pb2.EstadoResposta(estado='ok')
 
     def LancarSaida(self, request, context):
-        print("LancarSaida")
         data = datetime.now().astimezone().isoformat()
 
         movimentacao = gestor_de_estoque_pb2.RelatorioFluxoMovimentacoes.Movimentacao(
@@ -164,7 +168,7 @@ class GestorDeEstoqueServicer(gestor_de_estoque_pb2_grpc.GestorDeEstoqueServicer
         return gestor_de_estoque_pb2.EstadoResposta(estado='ok')
 
 def serve():
-    flask_th = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'debug': True, 'use_reloader': False})
+    flask_th = threading.Thread(target=app.run, kwargs={'host': '0.0.0.0', 'port': 5000, 'debug': False, 'use_reloader': False})
     flask_th.daemon = True
     flask_th.start()
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
@@ -178,7 +182,7 @@ def serve():
     notification_thread = threading.Thread(target=gestor_de_estoque_server.checaNotificacaoSemSaida)
     notification_thread.daemon = True
     notification_thread.start()
-    print("Vamo")
+    print("Servidor Pronto")
     server.wait_for_termination()
 
 if __name__ == '__main__':

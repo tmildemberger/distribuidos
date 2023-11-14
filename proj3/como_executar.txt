@@ -1,0 +1,13 @@
+Cliente (Aplicação em JavaScript executada com nw.js):
+
+0. Executar 'npm install' no diretório "client"
+1. Executar 'npm start' e deixar executando (pode ser em outro terminal)
+2. Executar 'nw .' no diretório "client" com a variável de ambiente NWJS_START_URL com o valor "http://localhost:3000"
+
+------
+
+Servidor (Python):
+
+0. Instalar pacotes necessários (flask-sse, grpc)
+0,5. Iniciar o Redis
+1. Executar o script 'gestor_de_estoque_server.py'

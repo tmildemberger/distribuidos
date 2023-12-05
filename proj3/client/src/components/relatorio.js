@@ -102,7 +102,7 @@ const Relatorio = ({stub}) => {
       } else if (tipoRelatorio === 'semsaida') {
         let semsaida_rows = [];
         for (let codigo in estadoResposta.codigos_sem_saida) {
-          semsaida_rows.push({id: codigo});
+          semsaida_rows.push({id: estadoResposta.codigos_sem_saida[codigo]});
         }
         setSemSaidaRows(semsaida_rows);
       }

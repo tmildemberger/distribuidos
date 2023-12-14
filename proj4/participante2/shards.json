@@ -1,0 +1,14 @@
+[
+    {
+        "id": "7287bbb474614e2fb9efffd5e08a476b",
+        "name": "principal",
+        "type": "Master",
+        "server_name": "the_new_server"
+    },
+    {
+        "id": "e8ec8ddc584f42f29dbd5352804833a8",
+        "name": "principal",
+        "type": "Master",
+        "server_name": "new_new_server"
+    }
+]

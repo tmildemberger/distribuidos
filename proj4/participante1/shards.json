@@ -1,0 +1,32 @@
+[
+    {
+        "id": "dfc0bd33663e4d53a4ee10e13fb98c4f",
+        "name": "nome1",
+        "type": "Secondary",
+        "server_name": "the_new_server"
+    },
+    {
+        "id": "a0fb3fbb06d64bb988adaf711bd6152d",
+        "name": "caves",
+        "type": "Secondary",
+        "server_name": "the_new_server"
+    },
+    {
+        "id": "6274bd9c124b40d7857e05b04eafb4fb",
+        "name": "volcano",
+        "type": "Secondary",
+        "server_name": "the_new_server"
+    },
+    {
+        "id": "cf4eabe6d8774a1182da7bb668dd1c05",
+        "name": "nome1",
+        "type": "Secondary",
+        "server_name": "new_new_server"
+    },
+    {
+        "id": "604592beabef46d28f98c2ab5b6185f6",
+        "name": "caves",
+        "type": "Secondary",
+        "server_name": "new_new_server"
+    }
+]

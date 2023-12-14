@@ -1,0 +1,22 @@
+[
+    {
+        "id": "28afd73bb98d487793e58c4f494b1f12",
+        "name": "the_new_server",
+        "shards": [
+            "dfc0bd33663e4d53a4ee10e13fb98c4f",
+            "7287bbb474614e2fb9efffd5e08a476b",
+            "a0fb3fbb06d64bb988adaf711bd6152d",
+            "6274bd9c124b40d7857e05b04eafb4fb"
+        ]
+    },
+    {
+        "id": "31c7ba96c22048cd85df375cc23a7608",
+        "name": "new_new_server",
+        "shards": [
+            "cf4eabe6d8774a1182da7bb668dd1c05",
+            "e8ec8ddc584f42f29dbd5352804833a8",
+            "604592beabef46d28f98c2ab5b6185f6",
+            "78a09ffc243c406d80ae115a8a04547b"
+        ]
+    }
+]

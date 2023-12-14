@@ -11,6 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, utils, padding
 # usa módulo argparse do python para descrever argumentos do programa
 parser = argparse.ArgumentParser(description='Gerador de participantes')
 parser.add_argument('nome', help='Nome do participante')
+parser.add_argument('porta', help='Porta do participante')
 # parser.add_argument('--debug', action='store_true', help='Escreve informações de debug')
 
 args = parser.parse_args()
@@ -23,6 +24,7 @@ if part.exists() and part.is_dir():
 
 part_obj = dict()
 part_obj['nome'] = args.nome
+part_obj['porta'] = args.porta
 
 part.mkdir()
 
@@ -45,4 +47,5 @@ serialized_private_key = private_key.private_bytes(
 (part / 'key.pub').write_text(serialized_public_key)
 (part / 'key').write_text(serialized_private_key)
 
-(part / 'log').touch()
+(part / 'servers.json').write_text(json.dumps([], indent=4))
+(part / 'shards.json').write_text(json.dumps([], indent=4))

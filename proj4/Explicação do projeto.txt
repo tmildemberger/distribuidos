@@ -1,0 +1,5 @@
+Cada participante possui 'shards' (fragmentos de mundo de Don't Starve, ou mais precisamente, os arquivos que descrevem como criar esses mundos).
+
+Cada servidor desse jogo é composto por 1 ou mais shards.
+
+A transação implementada é a de criar um novo servidor, com os shards podendo ser distribuídos por diferentes participantes.
